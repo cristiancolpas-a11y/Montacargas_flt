@@ -1,6 +1,6 @@
 {
   "cleanUrls": true,
-  "rewrites": [{ "source": "/((?!api/|assets/).*)", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/((?!api/|assets/|dashboard|favicon).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/(.*)",

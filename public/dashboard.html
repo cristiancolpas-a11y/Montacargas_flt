@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Tablero FLT Montacargas</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --asphalt:#1C2430; --asphalt-2:#2A3442;
+  --paper:#F1F2EF; --surface:#FCFCFB; --line:#DEE0DA; --grid:#ECEDE9;
+  --ink:#151A21; --ink-2:#52514E; --muted:#6B7280;
+  --plate:#F7C600;
+  --good:#0CA30C; --critical:#D03B3B; --series:#2A78D6;
+  --good-text:#0B7A0B; --crit-text:#B02A2A;
+  --focus:#2A78D6; --r:10px;
+  --cond:"Barlow Condensed","Arial Narrow",sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.hidden{display:none !important}
+.num{font-variant-numeric:tabular-nums}
+
+/* Login */
+.login{min-height:100dvh;display:grid;place-items:center;padding:24px 16px;background:var(--asphalt)}
+.login form{width:100%;max-width:380px;background:var(--surface);border-radius:14px;padding:28px}
+.login h1{font-family:var(--cond);font-size:32px;line-height:1;margin:14px 0 4px}
+.login p{color:var(--ink-2);margin:0 0 20px}
+.lbl{display:block;font-weight:600;margin:0 0 6px}
+.input{width:100%;min-height:44px;border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:8px 12px}
+.input:focus{outline:none;border-color:var(--ink)}
+.fld{margin:0 0 14px}
+.msg{font-size:14px;margin:0 0 12px;color:var(--crit-text);font-weight:600;min-height:20px}
+.btn{min-height:42px;border-radius:8px;border:1.5px solid var(--ink);background:var(--ink);color:#fff;font-weight:600;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.gold{background:var(--plate);color:var(--ink);border-color:var(--ink)}
+.btn.block{width:100%}
+.btn[disabled]{opacity:.55;cursor:progress}
+.plate{display:inline-flex;align-items:center;justify-content:center;background:var(--plate);border:2px solid var(--ink);border-radius:6px;font-family:var(--cond);font-weight:700;letter-spacing:.06em;padding:1px 8px;font-size:16px;line-height:1.3;color:var(--ink)}
+.plate.lg{font-size:30px;padding:2px 14px;border-width:3px;border-radius:8px}
+
+/* Shell */
+.bar{background:var(--asphalt);color:#fff}
+.bar .in{max-width:1320px;margin:0 auto;padding:0 20px;display:flex;align-items:center;gap:14px;min-height:60px}
+.bar h1{font-family:var(--cond);font-size:22px;margin:0;flex:1;line-height:1.1}
+.bar h1 small{display:block;font-family:var(--body);font-size:13px;color:#B9C0CA;font-weight:500}
+.bar .who{font-size:14px;color:#D5DAE1}
+.bar .btn.ghost{color:#fff;border-color:#4A5565}
+.page{max-width:1320px;margin:0 auto;padding:18px 20px 60px}
+
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin:0 0 16px}
+.filters .fld{margin:0}
+.filters .lbl{font-size:13px;color:var(--ink-2);margin-bottom:4px}
+.filters .input{min-height:40px;width:auto}
+.quick{display:flex;gap:4px;background:var(--paper);border-radius:8px;padding:3px}
+.quick button{border:0;background:transparent;border-radius:6px;padding:7px 10px;font-weight:600;font-size:14px;color:var(--ink-2)}
+.quick button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.filters .spacer{flex:1}
+.updated{font-size:13px;color:var(--muted);align-self:center}
+
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:0 0 16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.kpi .v{font-family:var(--cond);font-weight:700;font-size:38px;line-height:1}
+.kpi .l{font-size:13px;color:var(--ink-2);font-weight:600;margin-top:6px}
+.kpi .s{font-size:13px;color:var(--muted);margin-top:2px}
+.kpi.hero{background:var(--asphalt);border-color:var(--asphalt);color:#fff}
+.kpi.hero .l,.kpi.hero .s{color:#C3C9D2}
+.st{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:13px}
+.st svg{width:14px;height:14px}
+.st.ok{color:var(--good-text)} .st.bad{color:var(--crit-text)}
+
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;min-width:0}
+.panel h2{font-size:16px;font-weight:700;margin:0}
+.panel .sub{font-size:13px;color:var(--muted);margin:2px 0 12px}
+.ph{display:flex;align-items:flex-start;gap:12px;justify-content:space-between;margin-bottom:10px}
+.c12{grid-column:span 12}.c7{grid-column:span 7}.c5{grid-column:span 5}.c6{grid-column:span 6}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--ink-2);flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+svg.chart{width:100%;height:auto;display:block;overflow:visible}
+svg.chart text{font-family:var(--body);font-size:11px;fill:var(--muted)}
+
+.hbars{display:grid;gap:9px}
+.hb{display:grid;grid-template-columns:minmax(120px,38%) 1fr auto;align-items:center;gap:10px;font-size:14px}
+.hb .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hb .track{height:14px;display:flex;gap:2px;align-items:stretch}
+.hb .seg{height:100%;min-width:2px}
+.hb .seg:last-child{border-radius:0 4px 4px 0}
+.hb .val{font-size:13px;color:var(--ink-2);min-width:56px;text-align:right}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:5px;background:#FBE9E7;color:var(--crit-text);margin-left:6px;vertical-align:1px}
+.empty{color:var(--muted);padding:24px 0;text-align:center;font-size:14px}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;color:var(--ink-2);font-weight:700;padding:8px 10px;border-bottom:1.5px solid var(--line);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--grid);vertical-align:middle}
+td.r,th.r{text-align:right}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:#F5F6F2}
+.tablewrap{overflow-x:auto}
+.pager{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:10px;font-size:14px;color:var(--ink-2)}
+.search{min-height:38px;width:160px;text-transform:uppercase}
+
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font-size:13px;padding:8px 10px;border-radius:8px;z-index:60;max-width:280px;box-shadow:0 6px 18px rgba(0,0,0,.2);line-height:1.4}
+.tip b{display:block;margin-bottom:2px}
+
+/* Detalle */
+.drawer-bg{position:fixed;inset:0;background:rgba(21,26,33,.45);z-index:50}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--surface);z-index:51;overflow-y:auto;padding:20px 22px 40px;box-shadow:-10px 0 30px rgba(0,0,0,.2)}
+.drawer .top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.drawer .top .btn{margin-left:auto}
+.drawer dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0 0 16px}
+.drawer dt{color:var(--ink-2)} .drawer dd{margin:0;font-weight:600}
+.drawer h3{font-size:14px;margin:18px 0 6px;padding-top:12px;border-top:1px solid var(--line)}
+.ans{display:flex;gap:10px;align-items:flex-start;padding:5px 0;font-size:14px}
+.ans .res{flex:none;width:92px;font-weight:700;font-size:12px}
+.ans.no .res{color:var(--crit-text)} .ans.ok .res{color:var(--good-text)} .ans.na .res{color:var(--muted)}
+.ans small{display:block;color:var(--ink-2)}
+
+.modal-bg{position:fixed;inset:0;background:rgba(21,26,33,.55);z-index:70;display:grid;place-items:center;padding:16px}
+.modal{background:var(--surface);border-radius:14px;padding:24px;width:100%;max-width:400px}
+.modal h2{font-family:var(--cond);font-size:28px;margin:0 0 6px;line-height:1}
+.modal p{color:var(--ink-2);margin:0 0 16px}
+.modal .row{display:flex;gap:10px;justify-content:flex-end}
+.progress-note{font-size:13px;color:var(--ink-2)}
+
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}.c7,.c5,.c6{grid-column:span 12}}
+@media (max-width:600px){.kpis{grid-template-columns:repeat(2,1fr)}.bar .who{display:none}.page{padding:14px 16px 48px}.hb{grid-template-columns:110px 1fr auto}}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+
+/* Propio del tablero FLT */
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.cc{border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;background:#fff;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-height:132px}
+.cc:hover{border-color:var(--ink)}
+.cc .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.cc b{font-size:15px}
+.cc .rg{font-size:12px;color:var(--muted)}
+.cc .pct{font-family:var(--cond);font-weight:700;font-size:32px;line-height:1}
+.cc .meter{height:8px;background:var(--grid);border-radius:4px;overflow:hidden}
+.cc .meter i{display:block;height:100%;border-radius:0 4px 4px 0}
+.cc .ft{font-size:12px;color:var(--ink-2);display:flex;justify-content:space-between;gap:8px}
+.cc.none{background:var(--paper);cursor:default}
+.cc.none .pct{color:var(--muted);font-size:20px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill svg{width:12px;height:12px}
+.pill.ok{background:#E6F4E6;color:var(--good-text)}
+.pill.bad{background:#FBE9E7;color:var(--crit-text)}
+.pill.old{background:#FFF1D6;color:#8A5A00}
+a.btn{text-decoration:none}
+.legend-n{display:flex;gap:14px;font-size:12px;color:var(--ink-2);flex-wrap:wrap;margin:-4px 0 12px}
+.legend-n span{display:inline-flex;align-items:center;gap:6px}
+.legend-n i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.ans .res{width:70px}
+.ans .q{flex:1}
+.ans .n{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<section class="login" id="login">
+  <form id="login-form" autocomplete="on">
+    <span class="plate lg">FLT</span>
+    <h1>Inventario de repuestos</h1>
+    <p>Tablero de montacargas para supervisores de flota.</p>
+    <div class="fld"><label class="lbl" for="email">Correo</label><input class="input" id="email" type="email" autocomplete="username" required></div>
+    <div class="fld"><label class="lbl" for="pass">Contraseña</label><input class="input" id="pass" type="password" autocomplete="current-password" required></div>
+    <div class="msg" id="login-msg" role="alert"></div>
+    <button class="btn block" type="submit" id="login-btn">Ingresar</button>
+  </form>
+</section>
+
+<div id="shell" class="hidden">
+  <header class="bar"><div class="in">
+    <h1>FLT Montacargas <small>Inventario de repuestos · Regional Norte</small></h1>
+    <span class="who" id="who"></span>
+    <a class="btn ghost" href="/">Ir al registro</a>
+    <button class="btn ghost" type="button" id="btn-pass">Cambiar contraseña</button>
+    <button class="btn ghost" type="button" id="btn-out">Salir</button>
+  </div></header>
+
+  <div class="page">
+    <div class="filters" role="search">
+      <div class="fld"><span class="lbl">Periodo</span>
+        <div class="quick" id="quick">
+          <button type="button" data-q="6">7 días</button>
+          <button type="button" data-q="29" aria-pressed="true">30 días</button>
+          <button type="button" data-q="89">90 días</button>
+        </div></div>
+      <div class="fld"><label class="lbl" for="f-desde">Desde</label><input class="input" type="date" id="f-desde"></div>
+      <div class="fld"><label class="lbl" for="f-hasta">Hasta</label><input class="input" type="date" id="f-hasta"></div>
+      <div class="fld"><label class="lbl" for="f-centro">Centro</label><select class="input" id="f-centro"><option value="">Todos</option></select></div>
+      <span class="spacer"></span>
+      <span class="updated" id="updated"></span>
+      <button class="btn ghost" type="button" id="btn-refresh">Actualizar</button>
+      <button class="btn gold" type="button" id="btn-export">Exportar Excel</button>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid">
+      <section class="panel c12">
+        <div class="ph"><div><h2>Estado por centro</h2><div class="sub">Última inspección de cada centro en el periodo. Seleccione un centro para ver el conteo completo.</div></div></div>
+        <div class="legend-n"><span><i style="background:var(--good)"></i>Stock completo</span><span><i style="background:var(--critical)"></i>Con faltantes</span><span><i style="background:#E0A100"></i>Inspección de hace más de 7 días</span></div>
+        <div class="cgrid" id="centros"></div>
+      </section>
+      <section class="panel c7">
+        <h2>Repuestos que más faltan</h2><div class="sub">Centros donde el repuesto está por debajo del mínimo (según su última inspección)</div>
+        <div id="ch-faltantes"></div>
+      </section>
+      <section class="panel c5">
+        <h2>Cumplimiento por día</h2><div class="sub">Promedio de repuestos en stock mínimo de las inspecciones del día</div>
+        <div id="ch-dias"></div>
+      </section>
+      <section class="panel c12">
+        <div class="ph"><div><h2>Historial de inspecciones</h2><div class="sub">Seleccione una fila para ver el detalle</div></div></div>
+        <div class="tablewrap" id="tb-hist"></div>
+        <div class="pager" id="pager"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="tip hidden" id="tip" role="tooltip"></div>
+<div id="overlay"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(() => {
+"use strict";
+const SUPA_URL = "https://cygtbbihkjrfcepobdce.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Z3RiYmloa2pyZmNlcG9iZGNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQyMzgxNzIsImV4cCI6MjEwOTgxNDE3Mn0.9toQwh6i1AG0kRfesNIMgyl_lV40G58GMi4cGEOoefg";
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const fmt = (n, d = 0) => Number(n || 0).toLocaleString("es-CO", { maximumFractionDigits: d });
+const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const ICON = {
+  ok: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  bad: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10M12 19v.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>'
+};
+const RANGO = { RANGO_2: "Hasta 2 equipos", RANGO_3_5: "3 a 5 equipos", RANGO_6_9: "6 a 9 equipos", RANGO_10_MAS: "10 o más equipos" };
+
+const hoy = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
+const addDays = (s, n) => { const d = new Date(s + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const startOf = (s) => s + "T00:00:00-05:00";
+const dLabel = (s) => new Date(s + "T12:00:00Z").toLocaleDateString("es-CO", { day: "numeric", month: "short", timeZone: "UTC" }).replace(".", "");
+const dtLabel = (iso) => new Date(iso).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }).replace(".", "");
+const color = (pct) => pct >= 100 ? "var(--good)" : "var(--critical)";
+
+const F = LS.get("flt_filtros", null) || { desde: addDays(hoy(), -29), hasta: hoy(), centro: "", q: 29 };
+let CENTROS = [];
+let page = 0; const PAGE = 30;
+
+/* ---------- Acceso ---------- */
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) return enter(session.user);
+  showLogin();
+}
+function showLogin(msg = "") {
+  $("#login").classList.remove("hidden"); $("#shell").classList.add("hidden");
+  $("#login-msg").textContent = msg;
+}
+$("#login-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const b = $("#login-btn"); b.disabled = true; b.textContent = "Ingresando…"; $("#login-msg").textContent = "";
+  const { data, error } = await sb.auth.signInWithPassword({ email: $("#email").value.trim(), password: $("#pass").value });
+  b.disabled = false; b.textContent = "Ingresar";
+  if (error) { $("#login-msg").textContent = error.message === "Invalid login credentials" ? "Correo o contraseña incorrectos." : error.message; return; }
+  enter(data.user);
+};
+async function enter(user) {
+  const { data: ok, error } = await sb.rpc("es_supervisor");
+  if (error || !ok) { await sb.auth.signOut(); return showLogin("Esta cuenta no tiene acceso al tablero. Pida al administrador que la habilite."); }
+  $("#login").classList.add("hidden"); $("#shell").classList.remove("hidden");
+  $("#who").textContent = user.user_metadata?.nombre || user.email;
+  const { data } = await sb.from("inv_flt_centros").select("centro,orden,rango").order("orden");
+  CENTROS = data || [];
+  $("#f-centro").innerHTML = '<option value="">Todos</option>' + CENTROS.map((c) => `<option>${esc(c.centro)}</option>`).join("");
+  initFilters();
+  await refresh();
+  if (user.user_metadata?.cambiar_clave) passwordModal(true);
+}
+$("#btn-out").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+$("#btn-pass").onclick = () => passwordModal(false);
+
+function passwordModal(forced) {
+  $("#overlay").innerHTML = `<div class="modal-bg"><form class="modal" id="pw-form">
+    <h2>${forced ? "Cree su contraseña" : "Cambiar contraseña"}</h2>
+    <p>${forced ? "Está usando una contraseña temporal. Cree una propia para continuar." : "Use al menos 10 caracteres."}</p>
+    <div class="fld"><label class="lbl" for="pw1">Nueva contraseña</label><input class="input" id="pw1" type="password" autocomplete="new-password" minlength="10" required></div>
+    <div class="fld"><label class="lbl" for="pw2">Repítala</label><input class="input" id="pw2" type="password" autocomplete="new-password" minlength="10" required></div>
+    <div class="msg" id="pw-msg" role="alert"></div>
+    <div class="row">${forced ? "" : '<button type="button" class="btn ghost" id="pw-cancel">Cancelar</button>'}<button class="btn" type="submit">Guardar contraseña</button></div>
+  </form></div>`;
+  $("#pw1").focus();
+  if (!forced) $("#pw-cancel").onclick = () => ($("#overlay").innerHTML = "");
+  $("#pw-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const a = $("#pw1").value, b = $("#pw2").value;
+    if (a.length < 10) return ($("#pw-msg").textContent = "Use al menos 10 caracteres.");
+    if (a !== b) return ($("#pw-msg").textContent = "Las contraseñas no coinciden.");
+    const { error } = await sb.auth.updateUser({ password: a, data: { cambiar_clave: false } });
+    if (error) return ($("#pw-msg").textContent = error.message);
+    $("#overlay").innerHTML = "";
+    toast("Contraseña actualizada");
+  };
+}
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "tip"; t.style.cssText = "left:50%;bottom:24px;transform:translateX(-50%);position:fixed"; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 3200);
+}
+
+/* ---------- Filtros ---------- */
+function initFilters() {
+  $("#f-desde").value = F.desde; $("#f-hasta").value = F.hasta; $("#f-centro").value = F.centro;
+  markQuick();
+  document.querySelectorAll("#quick [data-q]").forEach((b) => b.onclick = () => {
+    F.q = Number(b.dataset.q); F.hasta = hoy(); F.desde = addDays(F.hasta, -F.q);
+    $("#f-desde").value = F.desde; $("#f-hasta").value = F.hasta; markQuick(); page = 0; refresh();
+  });
+  const onF = () => {
+    F.desde = $("#f-desde").value || F.desde; F.hasta = $("#f-hasta").value || F.hasta;
+    if (F.hasta < F.desde) { F.hasta = F.desde; $("#f-hasta").value = F.hasta; }
+    F.centro = $("#f-centro").value; F.q = null; markQuick(); page = 0; refresh();
+  };
+  ["#f-desde", "#f-hasta", "#f-centro"].forEach((s) => $(s).onchange = onF);
+  $("#btn-refresh").onclick = () => refresh();
+  $("#btn-export").onclick = exportar;
+  setInterval(() => { if (!document.hidden && !$("#overlay").innerHTML) refresh(true); }, 120000);
+}
+function markQuick() {
+  document.querySelectorAll("#quick [data-q]").forEach((b) => b.setAttribute("aria-pressed", F.q != null && Number(b.dataset.q) === F.q && F.hasta === hoy()));
+  LS.set("flt_filtros", F);
+}
+
+/* ---------- Datos ---------- */
+async function refresh(silent) {
+  if (F.q != null && F.hasta !== hoy()) { F.hasta = hoy(); F.desde = addDays(F.hasta, -F.q); $("#f-desde").value = F.desde; $("#f-hasta").value = F.hasta; }
+  if (!silent) $("#updated").textContent = "Actualizando…";
+  const { data, error } = await sb.rpc("dashboard_inventario_flt", { p_desde: F.desde, p_hasta: F.hasta, p_centro: F.centro || null });
+  if (error) {
+    if (error.code === "42501" || /JWT/.test(error.message)) { await sb.auth.signOut(); return showLogin("Su sesión terminó. Ingrese de nuevo."); }
+    $("#updated").textContent = "Error: " + error.message; return;
+  }
+  renderKpis(data.kpis);
+  renderCentros(data.por_centro);
+  renderFaltantes(data.top_faltantes);
+  renderDias(data.por_dia);
+  await loadHistorial();
+  $("#updated").textContent = "Actualizado " + new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+function renderKpis(k) {
+  const pct = k.cumplimiento_actual;
+  $("#kpis").innerHTML = `
+    <div class="kpi hero"><div class="v num">${pct != null ? fmt(pct, 1) + "%" : "—"}</div><div class="l">Cumplimiento de stock</div><div class="s">Promedio de la última inspección por centro</div></div>
+    <div class="kpi"><div class="v num">${fmt(k.centros_inspeccionados)}<span style="font-size:20px;color:var(--muted)"> / ${fmt(k.centros_total)}</span></div><div class="l">Centros inspeccionados</div><div class="s">${dLabel(F.desde)} a ${dLabel(F.hasta)}</div></div>
+    <div class="kpi"><div class="v num" style="color:${k.centros_con_faltantes ? "var(--crit-text)" : "inherit"}">${fmt(k.centros_con_faltantes)}</div><div class="l">Centros con faltantes</div><div class="s">Según su última inspección</div></div>
+    <div class="kpi"><div class="v num" style="color:${k.faltantes_actuales ? "var(--crit-text)" : "inherit"}">${fmt(k.faltantes_actuales)}</div><div class="l">Repuestos bajo mínimo</div><div class="s">Suma de todos los centros</div></div>
+    <div class="kpi"><div class="v num">${fmt(k.inspecciones)}</div><div class="l">Inspecciones</div><div class="s">Registradas en el periodo</div></div>
+    <div class="kpi"><div class="v num">${fmt(Math.max(0, k.centros_total - k.centros_inspeccionados))}</div><div class="l">Centros sin inspección</div><div class="s">En el periodo seleccionado</div></div>`;
+}
+
+function renderCentros(rows) {
+  $("#centros").innerHTML = rows.map((c) => {
+    if (!c.id) return `<div class="cc none"><div class="top"><div><b>${esc(c.centro)}</b><div class="rg">${RANGO[c.rango] || ""}</div></div></div>
+      <div class="pct">Sin inspección</div><div class="ft"><span>No hay registros en el periodo</span></div></div>`;
+    const viejo = c.dias > 7;
+    const estado = c.alertas > 0 ? `<span class="pill bad">${ICON.bad}${fmt(c.alertas)} faltante${c.alertas > 1 ? "s" : ""}</span>` : `<span class="pill ok">${ICON.ok}Completo</span>`;
+    return `<button type="button" class="cc" data-insp="${c.id}" aria-label="Ver inspección de ${esc(c.centro)}">
+      <div class="top"><div><b>${esc(c.centro)}</b><div class="rg">${RANGO[c.rango] || ""}</div></div>${estado}</div>
+      <div class="pct num" style="color:${c.alertas ? "var(--crit-text)" : "inherit"}">${fmt(c.cumplimiento, 1)}%</div>
+      <div class="meter"><i style="width:${Math.max(2, c.cumplimiento)}%;background:${color(c.cumplimiento)}"></i></div>
+      <div class="ft"><span>${dtLabel(c.ultima)}</span>${viejo ? `<span class="pill old">${ICON.clock}Hace ${c.dias} días</span>` : `<span>${esc(c.inspector)}</span>`}</div>
+    </button>`;
+  }).join("");
+  document.querySelectorAll("#centros [data-insp]").forEach((b) => b.onclick = () => detalle(b.dataset.insp));
+}
+
+function renderFaltantes(rows) {
+  if (!rows.length) { $("#ch-faltantes").innerHTML = '<div class="empty">Ningún repuesto por debajo del mínimo en la última inspección de cada centro.</div>'; return; }
+  const max = Math.max(...rows.map((r) => r.centros));
+  $("#ch-faltantes").innerHTML = `<div class="hbars">${rows.map((r) => `
+    <div class="hb" data-tip="<b>${esc(r.repuesto)}</b>Falta en ${fmt(r.centros)} centro${r.centros > 1 ? "s" : ""}: ${esc(r.lista)}<br>Déficit total: ${fmt(r.deficit, 2)} ${esc(r.und)}">
+      <span class="name">${esc(r.repuesto)}</span>
+      <span class="track" style="width:${(r.centros / max) * 100}%"><span class="seg" style="flex:1;background:var(--critical)"></span></span>
+      <span class="val num">${fmt(r.centros)} centro${r.centros > 1 ? "s" : ""}</span></div>`).join("")}</div>`;
+}
+
+function renderDias(rows) {
+  if (!rows.length) { $("#ch-dias").innerHTML = '<div class="empty">No hay inspecciones en este periodo.</div>'; return; }
+  const W = 560, H = 210, pl = 40, pr = 6, pt = 8, pb = 26;
+  const map = Object.fromEntries(rows.map((r) => [r.dia, r]));
+  const days = []; for (let d = F.desde; d <= F.hasta; d = addDays(d, 1)) days.push(d);
+  const cw = (W - pl - pr) / days.length, bw = Math.max(2, Math.min(22, cw * 0.62));
+  const y = (v) => pt + (H - pt - pb) * (1 - v / 100);
+  let g = "", bars = "", lab = "", hits = "";
+  [0, 50, 100].forEach((v) => { g += `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end">${v}%</text>`; });
+  const every = Math.ceil(days.length / 6);
+  days.forEach((d, i) => {
+    const r = map[d], cx = pl + cw * i + cw / 2;
+    if (r) {
+      const top = y(r.cumplimiento), h = Math.max(1, y(0) - top), x = cx - bw / 2, rr = Math.min(4, bw / 2, h);
+      bars += `<path d="M${x},${top + h}V${top + rr}Q${x},${top} ${x + rr},${top}H${x + bw - rr}Q${x + bw},${top} ${x + bw},${top + rr}V${top + h}Z" fill="var(--series)"/>`;
+      hits += `<rect x="${pl + cw * i}" y="${pt}" width="${cw}" height="${H - pt - pb}" fill="transparent" data-tip="<b>${dLabel(d)}</b>${fmt(r.cumplimiento, 1)}% de cumplimiento<br>${fmt(r.inspecciones)} inspección${r.inspecciones > 1 ? "es" : ""}"/>`;
+    }
+    if (i % every === 0) lab += `<text x="${cx}" y="${H - 8}" text-anchor="middle">${dLabel(d)}</text>`;
+  });
+  $("#ch-dias").innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumplimiento promedio por día">${g}${bars}${lab}${hits}</svg>`;
+}
+
+async function loadHistorial() {
+  let q = sb.from("inv_flt_inspecciones").select("id,creado_en,fecha,centro,inspector,total,ok,alertas,cumplimiento", { count: "exact" })
+    .gte("creado_en", startOf(F.desde)).lt("creado_en", startOf(addDays(F.hasta, 1)))
+    .order("creado_en", { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1);
+  if (F.centro) q = q.eq("centro", F.centro);
+  const { data, count: total, error } = await q;
+  if (error) { $("#tb-hist").innerHTML = `<div class="empty">${esc(error.message)}</div>`; return; }
+  if (!data.length) { $("#tb-hist").innerHTML = '<div class="empty">No hay inspecciones con estos filtros.</div>'; $("#pager").innerHTML = ""; return; }
+  const count = total ?? page * PAGE + data.length;
+  $("#tb-hist").innerHTML = `<table><thead><tr><th>Fecha</th><th>Centro</th><th>Inspector</th><th class="r">Repuestos</th><th class="r">En mínimo</th><th class="r">Faltantes</th><th class="r">Cumplimiento</th></tr></thead><tbody>
+    ${data.map((r) => `<tr class="click" data-id="${r.id}" tabindex="0"><td class="num">${dtLabel(r.creado_en)}</td><td>${esc(r.centro)}</td><td>${esc(r.inspector)}</td>
+      <td class="r num">${fmt(r.total)}</td><td class="r num">${fmt(r.ok)}</td>
+      <td class="r num">${r.alertas ? `<span class="pill bad">${ICON.bad}${fmt(r.alertas)}</span>` : "0"}</td>
+      <td class="r num">${fmt(r.cumplimiento, 1)}%</td></tr>`).join("")}
+  </tbody></table>`;
+  const pages = Math.ceil(count / PAGE);
+  $("#pager").innerHTML = `<span>${fmt(page * PAGE + 1)}–${fmt(Math.min(count, (page + 1) * PAGE))} de ${fmt(count)}</span>
+    <button class="btn ghost" type="button" id="pg-prev" ${page === 0 ? "disabled" : ""}>Anterior</button>
+    <button class="btn ghost" type="button" id="pg-next" ${page >= pages - 1 ? "disabled" : ""}>Siguiente</button>`;
+  $("#pg-prev").onclick = () => { page--; loadHistorial(); };
+  $("#pg-next").onclick = () => { page++; loadHistorial(); };
+  document.querySelectorAll("#tb-hist [data-id]").forEach((tr) => {
+    tr.onclick = () => detalle(tr.dataset.id);
+    tr.onkeydown = (e) => { if (e.key === "Enter") detalle(tr.dataset.id); };
+  });
+}
+
+async function detalle(id) {
+  $("#overlay").innerHTML = `<div class="drawer-bg" id="dbg"></div><aside class="drawer" role="dialog" aria-label="Detalle de la inspección"><div class="empty">Cargando…</div></aside>`;
+  $("#dbg").onclick = closeDrawer;
+  const { data: r, error } = await sb.from("inv_flt_inspecciones")
+    .select("*,inv_flt_items(orden,repuesto,cantidad,minimo,und,estado)").eq("id", id).single();
+  if (error || !r) { $(".drawer").innerHTML = `<div class="empty">No se pudo cargar: ${esc(error?.message)}</div>`; return; }
+  const items = (r.inv_flt_items || []).sort((a, b) => (a.estado === b.estado ? a.orden - b.orden : a.estado === "ALERTA" ? -1 : 1));
+  $(".drawer").innerHTML = `
+    <div class="top"><span class="plate lg">${esc(r.centro)}</span>${r.alertas ? `<span class="pill bad">${ICON.bad}${fmt(r.alertas)} faltante${r.alertas > 1 ? "s" : ""}</span>` : `<span class="pill ok">${ICON.ok}Completo</span>`}<button class="btn ghost" type="button" id="dclose">Cerrar</button></div>
+    <dl>
+      <dt>Fecha</dt><dd>${dtLabel(r.creado_en)}</dd>
+      <dt>Inspector</dt><dd>${esc(r.inspector)}</dd>
+      <dt>Rango</dt><dd>${RANGO[r.rango] || esc(r.rango)}</dd>
+      <dt>Cumplimiento</dt><dd>${fmt(r.cumplimiento, 1)}% · ${fmt(r.ok)} de ${fmt(r.total)} repuestos en mínimo</dd>
+      ${r.observacion ? `<dt>Observaciones</dt><dd>${esc(r.observacion)}</dd>` : ""}
+    </dl>
+    <h3>Conteo de repuestos</h3>
+    ${items.map((it) => `<div class="ans ${it.estado === "ALERTA" ? "no" : "ok"}"><span class="res">${it.estado === "ALERTA" ? "Faltante" : "OK"}</span>
+      <span class="q">${esc(it.repuesto)}</span><span class="n">${fmt(it.cantidad, 2)} / ${fmt(it.minimo, 2)} ${esc(it.und)}</span></div>`).join("")}`;
+  $("#dclose").onclick = closeDrawer;
+  $("#dclose").focus();
+}
+function closeDrawer() { $("#overlay").innerHTML = ""; }
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $(".drawer")) closeDrawer(); });
+
+/* Tooltip */
+const tip = $("#tip");
+document.addEventListener("mousemove", (e) => {
+  const t = e.target.closest?.("[data-tip]");
+  if (!t) { tip.classList.add("hidden"); return; }
+  tip.innerHTML = t.dataset.tip; tip.classList.remove("hidden");
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + 14, yy = e.clientY - h - 10;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 14;
+  if (yy < 8) yy = e.clientY + 16;
+  tip.style.left = x + "px"; tip.style.top = yy + "px";
+});
+
+/* ---------- Exportación ---------- */
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise((ok, fail) => { const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; s.onload = ok; s.onerror = fail; document.head.appendChild(s); });
+}
+async function exportar() {
+  const b = $("#btn-export"); b.disabled = true; b.textContent = "Preparando…";
+  try {
+    await loadXLSX();
+    const filas = []; const resumen = []; let off = 0;
+    for (;;) {
+      let q = sb.from("inv_flt_inspecciones").select("*,inv_flt_items(orden,repuesto,cantidad,minimo,und,estado)")
+        .gte("creado_en", startOf(F.desde)).lt("creado_en", startOf(addDays(F.hasta, 1)))
+        .order("creado_en", { ascending: true }).range(off, off + 199);
+      if (F.centro) q = q.eq("centro", F.centro);
+      const { data, error } = await q;
+      if (error) throw error;
+      for (const r of data) {
+        const f = new Date(r.creado_en).toLocaleString("es-CO", { timeZone: "America/Bogota", hour12: false });
+        resumen.push([f, r.centro, RANGO[r.rango] || r.rango, r.inspector, r.total, r.ok, r.alertas, Number(r.cumplimiento), r.observacion || ""]);
+        (r.inv_flt_items || []).sort((a, z) => a.orden - z.orden).forEach((it) =>
+          filas.push([f, r.centro, r.inspector, it.repuesto, Number(it.cantidad), Number(it.minimo), it.und, it.estado, it.estado === "ALERTA" ? Number(it.minimo) - Number(it.cantidad) : 0]));
+      }
+      off += data.length; b.textContent = `Descargando ${fmt(off)}…`;
+      if (data.length < 200) break;
+    }
+    if (!resumen.length) { toast("No hay inspecciones para exportar con estos filtros"); return; }
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.aoa_to_sheet([["Fecha", "Centro", "Rango", "Inspector", "Repuestos", "En mínimo", "Faltantes", "Cumplimiento %", "Observaciones"], ...resumen]);
+    ws1["!cols"] = [{ wch: 20 }, { wch: 14 }, { wch: 16 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 40 }];
+    const ws2 = XLSX.utils.aoa_to_sheet([["Fecha", "Centro", "Inspector", "Repuesto", "Cantidad", "Mínimo", "Unidad", "Estado", "Déficit"], ...filas]);
+    ws2["!cols"] = [{ wch: 20 }, { wch: 14 }, { wch: 24 }, { wch: 46 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 9 }];
+    ws2["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: filas.length, c: 8 } }) };
+    XLSX.utils.book_append_sheet(wb, ws1, "Inspecciones");
+    XLSX.utils.book_append_sheet(wb, ws2, "Detalle repuestos");
+    XLSX.writeFile(wb, `inventario_flt_${F.desde}_a_${F.hasta}${F.centro ? "_" + F.centro.replace(/\s+/g, "-") : ""}.xlsx`);
+  } catch (e) {
+    toast("No se pudo exportar: " + (e.message || e));
+  } finally { b.disabled = false; b.textContent = "Exportar Excel"; }
+}
+
+boot();
+})();
+</script>
+</body>
+</html>
