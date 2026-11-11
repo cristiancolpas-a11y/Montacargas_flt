@@ -1,0 +1,8 @@
+{
+  "name": "Remix Inventario Repuestos Montacargas",
+  "description": "Módulo de inspección e inventario de repuestos para flota de montacargas por centro con cálculo de mínimos y alertas automáticas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
