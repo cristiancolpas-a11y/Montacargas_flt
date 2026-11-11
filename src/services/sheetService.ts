@@ -1,4 +1,4 @@
-import Papa from 'papaparse';
+import { supabase } from '../lib/supabase';
 import { InspectionRecord } from '../types/repuestos';
 
 export const REPUESTOS_FLT_DOC_ID = '1lKiLDeMo7obOi580NUfGxNrcLf7fj5UO66xIQ4dX7oI';
@@ -171,7 +171,9 @@ export const fetchDataFromGAS = async (docId: string, sheetName: string, scriptU
 };
 
 /**
- * submitRepuestoFltInspeccion debe devolver objeto con success y message
+ * Guarda la inspección en Supabase (fuente principal). El servidor calcula OK/ALERTA
+ * con los mínimos vigentes del centro. Después, en segundo plano, envía la misma
+ * inspección al Apps Script para la copia en la hoja REPUESTOS y el correo de alerta.
  */
 export const submitRepuestoFltInspeccion = async (inspection: {
   fecha: string;
@@ -180,82 +182,64 @@ export const submitRepuestoFltInspeccion = async (inspection: {
   inspector: string;
   items: { repuesto: string; cantidad: number; minimo: number; und: string }[];
   observacion?: string;
-}): Promise<{ success: boolean; message?: string }> => {
-  const payload = {
-    method: 'POST_REPUESTO_FLT_INSPECCION',
-    data: {
-      ...inspection,
-      docId: REPUESTOS_FLT_DOC_ID,
-      sheetName: 'REPUESTOS',
-    },
-  };
+}): Promise<{ success: boolean; message?: string; alertaCount?: number }> => {
+  const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : undefined;
+  const fechaIso = /^\d{4}-\d{2}-\d{2}/.test(inspection.fecha) ? inspection.fecha.slice(0, 10) : undefined;
 
-  try {
-    const result = await sendToGAS(payload, REPUESTOS_FLT_SCRIPT_URL, true);
-    if (result && typeof result === 'object' && result.status === 'success') {
-      return { success: true };
-    }
+  const { data, error } = await supabase.rpc('registrar_inventario_flt', {
+    p: {
+      id,
+      fecha: fechaIso,
+      centro: inspection.centro,
+      inspector: inspection.inspector,
+      observacion: inspection.observacion,
+      items: inspection.items.map((it) => ({ repuesto: it.repuesto, cantidad: it.cantidad })),
+    },
+  });
+
+  if (error) {
+    const sinRed = /Failed to fetch|NetworkError|Load failed/i.test(error.message || '');
     return {
       success: false,
-      message: result?.message || 'El script no devolvió confirmación de guardado.',
-    };
-  } catch (e: any) {
-    console.error('Fallo el guardado de inspección:', e);
-    return {
-      success: false,
-      message: e?.message || 'Error de conexión con el script (verifique CORS o conectividad).',
+      message: sinRed
+        ? 'Sin conexión. Revise la señal e intente de nuevo; lo digitado se conserva.'
+        : error.message || 'No se pudo guardar la inspección.',
     };
   }
+
+  // Copia en la hoja + correo de alerta (no bloquea ni invalida el guardado principal)
+  if (isScriptConfigured()) {
+    const payload = {
+      method: 'POST_REPUESTO_FLT_INSPECCION',
+      data: { ...inspection, docId: REPUESTOS_FLT_DOC_ID, sheetName: 'REPUESTOS' },
+    };
+    sendToGAS(payload, REPUESTOS_FLT_SCRIPT_URL, true).catch((e) =>
+      console.warn('No se pudo notificar al Apps Script (hoja/correo):', e)
+    );
+  }
+
+  return { success: true, alertaCount: data?.alertaCount };
 };
 
 /**
- * Lee ÚNICAMENTE la información real existente en la hoja REPUESTOS.
- * NUNCA inventa, simula ni genera datos de prueba.
- * Si la hoja está vacía o no hay datos registrados, retorna un arreglo vacío [].
+ * Lee el historial real desde Supabase (últimos 120 días), con el mismo formato
+ * que antes venía de la hoja REPUESTOS. Nunca genera datos de prueba.
  */
 export const fetchRepuestoFltFromSheet = async (): Promise<InspectionRecord[]> => {
-  const map = (rows: any[][]): InspectionRecord[] =>
-    rows
-      .slice(1)
-      .filter(r => r && r[1] && r[3])
-      .map(r => ({
-        fecha: cleanSheetValue(r[0]),
-        centro: cleanSheetValue(r[1]),
-        inspector: cleanSheetValue(r[2]),
-        repuesto: cleanSheetValue(r[3]),
-        cantidad: Number(cleanSheetValue(r[4])) || 0,
-        minimo: Number(cleanSheetValue(r[5])) || 0,
-        und: cleanSheetValue(r[6]),
-        estado: (cleanSheetValue(r[7]) || 'OK').toUpperCase() === 'ALERTA' ? 'ALERTA' : 'OK',
-        observacion: cleanSheetValue(r[8]),
-      }));
-
-  // 1. Intentar leer vía Apps Script Web App
-  try {
-    const rows = await fetchDataFromGAS(REPUESTOS_FLT_DOC_ID, 'REPUESTOS', REPUESTOS_FLT_SCRIPT_URL);
-    if (rows && rows.length >= 2) {
-      return map(rows);
-    }
-  } catch (e) {
-    console.warn('Fallo fetchDataFromGAS:', e);
+  const { data, error } = await supabase.rpc('listar_inventario_flt', { p_dias: 120 });
+  if (error || !Array.isArray(data)) {
+    console.warn('No se pudo leer el historial de inventario:', error?.message);
+    return [];
   }
-
-  // 2. Intentar leer vía export CSV público de la hoja REPUESTOS (gid 0)
-  // URL exacta según instrucción: https://docs.google.com/spreadsheets/d/${REPUESTOS_FLT_DOC_ID}/export?format=csv&gid=${REPUESTOS_FLT_GID}${getCacheBuster()}
-  try {
-    const url = `https://docs.google.com/spreadsheets/d/${REPUESTOS_FLT_DOC_ID}/export?format=csv&gid=${REPUESTOS_FLT_GID}${getCacheBuster()}`;
-    const r = await fetch(url);
-    const csv = await r.text();
-    if (csv && !csv.includes('<!DOCTYPE html')) {
-      const p = Papa.parse(csv, { skipEmptyLines: true });
-      if (p.data && (p.data as any[][]).length >= 2) {
-        return map(p.data as any[][]);
-      }
-    }
-  } catch (e) {
-    console.warn('Fallo CSV fetch:', e);
-  }
-
-  // Si no hay datos reales en la hoja, devolver arreglo vacío (cero datos ficticios)
-  return [];
+  return data.map((r: any) => ({
+    fecha: String(r.fecha ?? ''),
+    centro: String(r.centro ?? ''),
+    inspector: String(r.inspector ?? ''),
+    repuesto: String(r.repuesto ?? ''),
+    cantidad: Number(r.cantidad) || 0,
+    minimo: Number(r.minimo) || 0,
+    und: String(r.und ?? ''),
+    estado: r.estado === 'ALERTA' ? 'ALERTA' : 'OK',
+    observacion: String(r.observacion ?? ''),
+  }));
 };
