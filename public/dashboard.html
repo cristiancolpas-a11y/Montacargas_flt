@@ -160,6 +160,17 @@ a.btn{text-decoration:none}
 .tabs{display:flex;gap:4px;margin:0 0 14px;border-bottom:1.5px solid var(--line)}
 .tabs button{border:0;background:none;padding:10px 16px;font-weight:700;font-size:15px;color:var(--ink-2);border-bottom:3px solid transparent;margin-bottom:-1.5px}
 .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--plate)}
+.seg2{display:inline-flex;border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
+.seg2 button{border:0;background:none;padding:8px 14px;font-weight:600;min-height:40px}
+.seg2 button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.cat-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 12px}
+.cat-tools .input{width:auto;flex:1;min-width:180px;min-height:40px}
+td.acc{white-space:nowrap;text-align:right}
+td.acc .btn{min-height:34px;padding:0 12px;font-size:14px}
+.btn.danger{background:var(--critical);border-color:var(--critical);color:#fff}
+.btn.ghost.danger{background:transparent;color:var(--crit-text);border-color:#E7B4B0}
+.confirm{border:1.5px solid #E7B4B0;background:#FBE9E7;border-radius:8px;padding:12px 14px;margin:14px 0 0;font-size:14px}
+.confirm .row{display:flex;gap:8px;margin-top:10px}
 .foto{width:100%;border-radius:8px;border:1px solid var(--line);margin-top:6px}
 .legend-n{display:flex;gap:14px;font-size:12px;color:var(--ink-2);flex-wrap:wrap;margin:-4px 0 12px}
 .legend-n span{display:inline-flex;align-items:center;gap:6px}
@@ -253,6 +264,16 @@ a.btn{text-decoration:none}
         <h2>Alertas de horómetro</h2><div class="sub">Lecturas menores que la anterior o corregidas a mano después de la foto</div>
         <div class="tablewrap" id="g-alertas"></div>
       </section>
+      <section class="panel c12" id="cat">
+        <div class="ph"><div><h2>Máquinas y operadores</h2><div class="sub">Listas que aparecen en el registro de cambio de cilindro. Los cambios se ven en la app de inmediato.</div></div>
+          <button class="btn gold" type="button" id="cat-add">Agregar</button></div>
+        <div class="cat-tools">
+          <div class="seg2" role="group" aria-label="Lista"><button type="button" data-t="maq" aria-pressed="true">Máquinas</button><button type="button" data-t="op" aria-pressed="false">Operadores</button></div>
+          <input class="input" type="search" id="cat-q" placeholder="Buscar por nombre o CD" aria-label="Buscar">
+          <span class="sub" id="cat-n" style="margin:0"></span>
+        </div>
+        <div class="tablewrap" id="cat-tb"></div>
+      </section>
       <section class="panel c12">
         <div class="ph"><div><h2>Historial de cambios de cilindro</h2><div class="sub">Seleccione una fila para ver el detalle y la foto del horómetro</div></div></div>
         <div class="tablewrap" id="g-hist"></div>
@@ -322,9 +343,15 @@ async function enter(user) {
   $("#who").textContent = user.user_metadata?.nombre || user.email;
   const { data } = await sb.from("inv_flt_centros").select("centro,orden,rango").order("orden");
   CENTROS = data || [];
-  const g = await sb.from("glp_maquinas").select("cd");
-  GLP_CDS = [...new Set((g.data || []).map((x) => x.cd))].sort((a, b) => a.localeCompare(b, "es"));
+  await cargarCatalogo();
   pintarVista();
+  document.querySelectorAll("#cat [data-t]").forEach((b) => b.onclick = () => {
+    CAT.t = b.dataset.t;
+    document.querySelectorAll("#cat [data-t]").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    pintarCatalogo();
+  });
+  $("#cat-q").oninput = pintarCatalogo;
+  $("#cat-add").onclick = () => formCatalogo(null, false);
   initFilters();
   await refresh();
   if (user.user_metadata?.cambiar_clave) passwordModal(true);
@@ -582,6 +609,90 @@ async function exportar() {
   } finally { b.disabled = false; b.textContent = "Exportar Excel"; }
 }
 
+/* ---------- Máquinas y operadores ---------- */
+const CAT = { t: "maq", maq: [], op: [] };
+async function cargarCatalogo() {
+  const [m, o] = await Promise.all([
+    sb.from("glp_maquinas").select("maquina,cd").order("cd").order("maquina"),
+    sb.from("glp_operadores").select("id,operador,cd").order("cd").order("operador"),
+  ]);
+  if (m.error || o.error) { $("#cat-tb").innerHTML = `<div class="empty">${esc((m.error || o.error).message)}</div>`; return; }
+  CAT.maq = m.data; CAT.op = o.data;
+  GLP_CDS = [...new Set([...CAT.maq, ...CAT.op].map((x) => x.cd))].sort((a, b) => a.localeCompare(b, "es"));
+  pintarCatalogo();
+}
+function pintarCatalogo() {
+  const q = $("#cat-q").value.trim().toLowerCase();
+  const esMaq = CAT.t === "maq";
+  const rows = (esMaq ? CAT.maq : CAT.op).filter((r) => (!F.centro || r.cd === F.centro) &&
+    (!q || (esMaq ? r.maquina : r.operador).toLowerCase().includes(q) || r.cd.toLowerCase().includes(q)));
+  $("#cat-n").textContent = `${fmt(rows.length)} ${esMaq ? "máquina" : "operador"}${rows.length === 1 ? "" : esMaq ? "s" : "es"}${F.centro ? " en " + F.centro : ""}`;
+  if (!rows.length) { $("#cat-tb").innerHTML = '<div class="empty">No hay registros con este filtro.</div>'; return; }
+  $("#cat-tb").innerHTML = `<table><thead><tr><th>${esMaq ? "Máquina" : "Operador"}</th><th>CD</th><th class="r">Acciones</th></tr></thead><tbody>
+    ${rows.map((r) => {
+      const k = esMaq ? r.maquina : r.id;
+      return `<tr><td>${esMaq ? `<span class="plate">${esc(r.maquina)}</span>` : esc(r.operador)}</td><td>${esc(r.cd)}</td>
+        <td class="acc"><button class="btn ghost" type="button" data-ed="${esc(k)}">Editar</button> <button class="btn ghost danger" type="button" data-del="${esc(k)}">Borrar</button></td></tr>`;
+    }).join("")}</tbody></table>`;
+  document.querySelectorAll("#cat-tb [data-ed]").forEach((b) => b.onclick = () => formCatalogo(b.dataset.ed, false));
+  document.querySelectorAll("#cat-tb [data-del]").forEach((b) => b.onclick = () => formCatalogo(b.dataset.del, true));
+}
+function formCatalogo(key, borrar) {
+  const esMaq = CAT.t === "maq";
+  const r = key == null ? null : esMaq ? CAT.maq.find((x) => x.maquina === key) : CAT.op.find((x) => String(x.id) === String(key));
+  const nombre = esMaq ? "máquina" : "operador";
+  const titulo = r ? (borrar ? `Borrar ${nombre}` : `Editar ${nombre}`) : `Agregar ${nombre}`;
+  const cdIni = r ? r.cd : F.centro || "";
+  $("#overlay").innerHTML = `<div class="drawer-bg" id="dbg"></div><aside class="drawer" role="dialog" aria-label="${titulo}">
+    <div class="top"><h2 style="margin:0;font-size:18px;flex:1">${titulo}</h2><button class="btn ghost" type="button" id="dclose">Cerrar</button></div>
+    <form id="cat-form" novalidate>
+      <div class="fld"><label class="lbl" for="c-nom">${esMaq ? "Número de máquina" : "Nombre completo"}</label>
+        <input class="input" id="c-nom" maxlength="${esMaq ? 20 : 120}" autocomplete="off" value="${esc(r ? (esMaq ? r.maquina : r.operador) : "")}" ${borrar ? "disabled" : ""} required></div>
+      <div class="fld"><label class="lbl" for="c-cd">CD</label>
+        <select class="input" id="c-cd" ${borrar ? "disabled" : ""}>${GLP_CDS.map((c) => `<option ${c === cdIni ? "selected" : ""}>${esc(c)}</option>`).join("")}<option value="__nuevo">Otro CD…</option></select></div>
+      <div class="fld hidden" id="c-cdn-f"><label class="lbl" for="c-cdn">Nombre del nuevo CD</label><input class="input" id="c-cdn" maxlength="40" autocomplete="off"></div>
+      ${esMaq && r && !borrar ? '<p class="sub">Si cambia el número, los cambios de cilindro ya registrados conservan el número anterior.</p>' : ""}
+      <p class="msg" id="c-msg" role="alert"></p>
+      ${borrar ? `<div class="confirm">Se quitará <b>${esc(esMaq ? r.maquina : r.operador)}</b> de la lista del registro. El historial de cambios de cilindro no se borra.
+          <div class="row"><button class="btn danger" type="submit" id="c-ok">Sí, borrar</button><button class="btn ghost" type="button" id="c-cancel">Cancelar</button></div></div>`
+        : `<button class="btn block" type="submit" id="c-ok">${r ? "Guardar cambios" : "Agregar"}</button>`}
+    </form></aside>`;
+  if (!GLP_CDS.includes(cdIni) && !r) $("#c-cd").value = GLP_CDS[0] || "__nuevo";
+  const togg = () => $("#c-cdn-f").classList.toggle("hidden", $("#c-cd").value !== "__nuevo");
+  $("#c-cd").onchange = togg; togg();
+  $("#dbg").onclick = closeDrawer; $("#dclose").onclick = closeDrawer;
+  if ($("#c-cancel")) $("#c-cancel").onclick = closeDrawer;
+  (borrar ? $("#c-ok") : $("#c-nom")).focus();
+  $("#cat-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const msg = (t) => { $("#c-msg").textContent = t; };
+    const tabla = esMaq ? "glp_maquinas" : "glp_operadores";
+    const llave = esMaq ? { col: "maquina", val: r?.maquina } : { col: "id", val: r?.id };
+    let res;
+    if (borrar) {
+      res = await sb.from(tabla).delete().eq(llave.col, llave.val).select();
+    } else {
+      let nom = $("#c-nom").value.replace(/\s+/g, " ").trim();
+      if (esMaq) nom = nom.toUpperCase();
+      const cd = ($("#c-cd").value === "__nuevo" ? $("#c-cdn").value : $("#c-cd").value).replace(/\s+/g, " ").trim();
+      if (esMaq ? nom.length < 1 : nom.length < 3) return msg(esMaq ? "Escriba el número de la máquina." : "Escriba el nombre del operador.");
+      if (cd.length < 2) return msg("Escriba el nombre del CD.");
+      const dup = esMaq ? CAT.maq.find((x) => x.maquina.toUpperCase() === nom && x.maquina !== r?.maquina)
+                        : CAT.op.find((x) => x.operador.toLowerCase() === nom.toLowerCase() && x.cd === cd && x.id !== r?.id);
+      if (dup) return msg(esMaq ? `La máquina ${dup.maquina} ya existe en ${dup.cd}.` : `${dup.operador} ya está registrado en ${dup.cd}.`);
+      const fila = esMaq ? { maquina: nom, cd } : { operador: nom, cd };
+      res = r ? await sb.from(tabla).update(fila).eq(llave.col, llave.val).select() : await sb.from(tabla).insert(fila).select();
+    }
+    if (res.error || !res.data?.length) {
+      const m = res.error?.message || "";
+      return msg(/duplicate|unique/i.test(m) ? "Ese registro ya existe." : /row-level|permission|42501/i.test(m + (res.error?.code || "")) || !res.error ? "Su usuario no tiene permiso para modificar estas listas." : "No se pudo guardar: " + m);
+    }
+    closeDrawer();
+    toast(borrar ? "Registro borrado" : r ? "Cambios guardados" : "Registro agregado");
+    await cargarCatalogo(); pintarVista();
+  };
+}
+
 /* ================= Cilindros GLP ================= */
 const kg = (n) => fmt(n, 1) + " kg";
 async function refreshGLP() {
@@ -649,6 +760,7 @@ async function refreshGLP() {
       <td><span class="pill ${r.motivo.startsWith("Horómetro menor") ? "bad" : "old"}">${esc(r.motivo)}</span></td></tr>`).join("")}</tbody></table>`;
   document.querySelectorAll("#g-alertas [data-g]").forEach((tr) => tr.onclick = () => detalleGLP(tr.dataset.g));
 
+  pintarCatalogo();
   await loadHistorialGLP();
   $("#updated").textContent = "Actualizado " + new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
